@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven3'   // Maven 3.9.10 (configured as 'maven3' in Jenkins)
+        jdk 'jdk17'      // OpenJDK 17 (configured as 'jdk17' in Jenkins)
+    }
+
+    environment {
+        GIT_REPO = 'https://github.com/hkhcoder/vprofile-project.git'
+        GIT_BRANCH = 'main'
+    }
+
+    stages {
+        stage('Fetch Code') {
+            steps {
+                echo "Cloning repository from ${GIT_REPO}..."
+                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building the project using Maven...'
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Unit Test') {
+            steps {
+                echo 'Running unit tests...'
+                sh 'mvn test'
+            }
+        }
+    }
+
+    post {
+        success {
+            slackSend(
+                channel: '#ramram',
+                color: 'good', // green
+                message: " SUCCESS: *${env.JOB_NAME}* #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open Build>)"
+            )
+        }
+
+        failure {
+            slackSend(
+                channel: '#ramram',
+                color: 'danger', // red
+                message: " FAILURE: *${env.JOB_NAME}* #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open Build>)"
+            )
+        }
+
+        always {
+            echo 'Build completed. Slack notification sent.'
+        }
+    }
+}

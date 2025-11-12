@@ -1,0 +1,26 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Run PostgreSQL') {
+            steps {
+                withCredentials([string(credentialsId: 'postgres-password', variable: 'PG_PASS')]) {
+                    echo '>>> Starting PostgreSQL container securely...'
+
+                    sh '''
+                        # Stop and remove existing container if it exists
+                        if [ $(docker ps -aq -f name=some-postgres) ]; then
+                            docker rm -f some-postgres
+                        fi
+
+                        # Run new container
+                        docker run -d --name some-postgres -e POSTGRES_PASSWORD=$PG_PASS postgres
+
+                        echo '>>> Running containers:'
+                        docker ps
+                    '''
+                }
+            }
+        }
+    }
+}

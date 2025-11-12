@@ -1,0 +1,38 @@
+@Library('lalalala') _
+import org.company.utils.DbHelper
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Deploy') {
+            steps {
+                deployApp('dev')   // from vars/deployApp.groovy
+            }
+        }
+
+        stage('Init DB') {
+            steps {
+                script {
+                    def sqlScript = libraryResource('sql/init-db.sql')
+                    writeFile file: 'init.sql', text: sqlScript
+                    sh "cat init.sql"
+                }
+            }
+        }
+
+        stage('Notify') {
+            steps {
+                notifySlack('Shared library test complete!') // from vars/notifySlack.groovy
+            }
+        }
+
+        stage('Helper Test') {
+            steps {
+                script {
+                    DbHelper.connect("jdbc:postgresql://localhost:5432/testdb", "user", "pass")
+                }
+            }
+        }
+    }
+}
