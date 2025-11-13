@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+
+    environment {
+        POSTGRES_USER = 'testuser'
+        POSTGRES_PASSWORD = 'testpass'
+        POSTGRES_DB = 'testdb'
+    }
+
+    stages {
+        stage('Start PostgreSQL') {
+            steps {
+                echo "Starting PostgreSQL container..."
+                sh """
+                # Remove old container if exists
+                docker rm -f psql-db 2>/dev/null || true
+                # Start PostgreSQL container
+                docker run -d --name psql-db \
+                    -e POSTGRES_USER=${POSTGRES_USER} \
+                    -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                    -e POSTGRES_DB=${POSTGRES_DB} \
+                    -p 55432:5432 postgres:15
+                """
+            }
+        }
+
+        stage('Run Sample App') {
+            steps {
+                echo "Running lightweight test app container..."
+                sh """
+                # Remove old app container if exists
+                docker rm -f app 2>/dev/null || true
+                # Run dummy app container
+                docker run -d --name app --link psql-db:db busybox sh -c "while true; do echo App running; sleep 5; done"
+                """
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                echo "Running tests..."
+                sh """
+                # Run a dummy test container
+                docker run --rm --link psql-db:db --link app:app busybox sh -c "echo Test container connecting to app & DB; sleep 2"
+                """
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                echo "Stopping and removing containers..."
+                sh "docker stop app psql-db 2>/dev/null || true"
+                sh "docker rm app psql-db 2>/dev/null || true"
+            }
+        }
+    }
+}
